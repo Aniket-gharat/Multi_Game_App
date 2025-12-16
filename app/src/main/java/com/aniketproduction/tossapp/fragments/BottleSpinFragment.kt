@@ -14,6 +14,7 @@ import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.aniketproduction.tossapp.R
+import com.aniketproduction.tossapp.adapter.NamesAdapter
 import com.aniketproduction.tossapp.databinding.FragmentBottleSpinBinding
 import kotlin.math.cos
 import kotlin.math.sin
@@ -188,28 +189,3 @@ class BottleSpinFragment : Fragment() {
     }
 }
 
-// Simple adapter for the names RecyclerView
-class NamesAdapter(
-    private val names: MutableList<String>,
-    private val onDeleteClick: (Int) -> Unit
-) : RecyclerView.Adapter<NamesAdapter.NameViewHolder>() {
-
-    class NameViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        val nameText: TextView = view.findViewById(R.id.tv_name)
-        val deleteButton: View = view.findViewById(R.id.btn_delete)
-    }
-
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): NameViewHolder {
-        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_player_name, parent, false)
-        return NameViewHolder(view)
-    }
-
-    override fun onBindViewHolder(holder: NameViewHolder, position: Int) {
-        holder.nameText.text = names[position]
-        holder.deleteButton.setOnClickListener {
-            onDeleteClick(position)
-        }
-    }
-
-    override fun getItemCount() = names.size
-}

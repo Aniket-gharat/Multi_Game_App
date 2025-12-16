@@ -19,6 +19,7 @@ class CoinTossFragment : Fragment() {
 
     private var _binding: FragmentCoinTossBinding? = null
     private val binding get() = _binding!!
+    private var isHeadsResult: Boolean = true // Store the final determined result
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -45,76 +46,121 @@ class CoinTossFragment : Fragment() {
         binding.btnToss.isEnabled = false
         binding.tvResult.text = ""
 
-        // Reset coin position and rotation
+        // Set camera distance for a realistic 3D rotation perspective
+        val scale = resources.displayMetrics.density
+        binding.ivCoin.cameraDistance = 8000 * scale // Adjust as needed for desired perspective
+
+        // Reset coin position and rotation to a clean start
         binding.ivCoin.translationY = 0f
         binding.ivCoin.rotationY = 0f
-        binding.ivCoin.rotationX = 0f
+        binding.ivCoin.rotationX = 0f // Also reset X rotation
 
-        // Determine the result
-        val isHeads = Random.nextBoolean()
-        val numberOfFlips = Random.nextInt(4, 8) // Random flips between 4-7
+        // Determine the result for this toss
+        isHeadsResult = Random.nextBoolean()
+        val numberOfFlips = Random.nextInt(5, 10) // Random flips between 5-9 for a good spin
 
-        // Create the upward movement animation
-        val moveUp = ObjectAnimator.ofFloat(binding.ivCoin, "translationY", 0f, -400f).apply {
-            duration = 800
+        // Upward movement animation
+        val moveUp = ObjectAnimator.ofFloat(binding.ivCoin, "translationY", 0f, -600f).apply {
+            duration = 600
             interpolator = DecelerateInterpolator()
         }
 
-        // Create the downward movement animation
-        val moveDown = ObjectAnimator.ofFloat(binding.ivCoin, "translationY", -400f, 0f).apply {
-            duration = 800
+        // Downward movement animation
+        val moveDown = ObjectAnimator.ofFloat(binding.ivCoin, "translationY", -600f, 0f).apply {
+            duration = 600
             interpolator = AccelerateDecelerateInterpolator()
         }
 
-        // Create rotation animation (Y-axis for flipping effect)
+        // Y-axis rotation (flipping effect)
         val rotationY = ObjectAnimator.ofFloat(binding.ivCoin, "rotationY", 0f, 360f * numberOfFlips).apply {
-            duration = 1600 // Total duration for both up and down
+            duration = 1200 // Total duration for the main flip
             interpolator = AccelerateDecelerateInterpolator()
+
+            // Listener to swap image resource during rotation
+            addUpdateListener { animator ->
+                val currentRotation = animator.animatedValue as Float
+                // Normalize rotation to 0-360 degrees
+                val normalizedRotation = currentRotation % 360
+
+                // If the "back" of the coin is facing us (roughly between 90 and 270 degrees)
+                if (normalizedRotation > 90 && normalizedRotation < 270) {
+                    binding.ivCoin.setImageResource(R.drawable.tails)
+                } else {
+                    binding.ivCoin.setImageResource(R.drawable.heads)
+                }
+            }
         }
 
-        // Create slight X-axis rotation for 3D effect
-        val rotationX = ObjectAnimator.ofFloat(binding.ivCoin, "rotationX", 0f, 30f, 0f).apply {
-            duration = 1600
-            interpolator = AccelerateDecelerateInterpolator()
-        }
-
-        // Create the complete animation set
-        val animatorSet = AnimatorSet().apply {
-            // Play move up, then move down
+        // Combine all toss animations
+        val tossAnimatorSet = AnimatorSet().apply {
+            // Play rotation with upward movement, then downward movement
+            play(rotationY)
             play(moveDown).after(moveUp)
-            // Play rotations throughout the entire duration
-            play(rotationY).with(moveUp)
-            play(rotationX).with(moveUp)
 
             addListener(object : AnimatorListenerAdapter() {
-                override fun onAnimationStart(animation: Animator) {
-                    // Show spinning coin image during animation
-                    binding.ivCoin.setImageResource(R.drawable.ic_heads)
-                }
-
                 override fun onAnimationEnd(animation: Animator) {
-                    // Set final result
-                    if (isHeads) {
-                        binding.ivCoin.setImageResource(R.drawable.ic_heads)
-                        binding.tvResult.text = getString(R.string.heads)
-                    } else {
-                        binding.ivCoin.setImageResource(R.drawable.ic_tails)
-                        binding.tvResult.text = getString(R.string.tails)
-                    }
-
-                    // Reset rotations to show final result clearly
-                    binding.ivCoin.rotationY = 0f
-                    binding.ivCoin.rotationX = 0f
-
-                    // Re-enable the button
-                    binding.btnToss.isEnabled = true
+                    // After the main toss animation, start the settling animation
+                    settleCoin()
                 }
             })
         }
 
-        // Start the animation
-        animatorSet.start()
+        // Start the main toss animation
+        tossAnimatorSet.start()
     }
+
+    private fun settleCoin() {
+        // Calculate the target rotation to show the correct result (0 for heads, 180 for tails)
+        // We calculate the shortest path to get there from the current rotation.
+        val currentRotationY = binding.ivCoin.rotationY % 360 // Get current rotation from 0 to 360
+        val targetRotationY = if (isHeadsResult) 0f else 180f
+
+        var rotationDifference = targetRotationY - currentRotationY
+        // Adjust difference to take the shortest path (e.g., from 350 to 0 is +10, not -350)
+        if (rotationDifference > 180) rotationDifference -= 360
+        if (rotationDifference < -180) rotationDifference += 360
+
+        val finalRotationValue = binding.ivCoin.rotationY + rotationDifference
+
+        val settleAnimator = ObjectAnimator.ofFloat(binding.ivCoin, "rotationY", finalRotationValue).apply {
+            duration = 250 // Quick, smooth settle
+            interpolator = DecelerateInterpolator()
+
+            addUpdateListener { animator ->
+                val currentRotation = animator.animatedValue as Float
+                val normalizedRotation = currentRotation % 360
+
+                if (normalizedRotation > 90 && normalizedRotation < 270) {
+                    binding.ivCoin.setImageResource(R.drawable.tails)
+                } else {
+                    binding.ivCoin.setImageResource(R.drawable.heads)
+                }
+            }
+        }
+
+        settleAnimator.addListener(object : AnimatorListenerAdapter() {
+            override fun onAnimationEnd(animation: Animator) {
+                // Ensure the final image is correctly set after settling
+                if (isHeadsResult) {
+                    binding.ivCoin.setImageResource(R.drawable.heads)
+                    binding.tvResult.text = getString(R.string.heads)
+                } else {
+                    binding.ivCoin.setImageResource(R.drawable.tails)
+                    binding.tvResult.text = getString(R.string.tails)
+                }
+
+                // Explicitly set rotationY to 0 to ensure it's perfectly flat
+                // (or 180 if you want tails to be at 180, though 0 for heads/tails is simpler if just image changes)
+                binding.ivCoin.rotationY = 0f
+                binding.ivCoin.rotationX = 0f // Reset X rotation as well if it was used
+
+                // Re-enable the button
+                binding.btnToss.isEnabled = true
+            }
+        })
+        settleAnimator.start()
+    }
+
 
     override fun onDestroyView() {
         super.onDestroyView()

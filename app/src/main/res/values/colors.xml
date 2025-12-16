@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Light mode colors -->
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
     <color name="primary_blue">#FF0077B6</color>
@@ -7,4 +8,12 @@
     <color name="light_gray">#FFE0E0E0</color>
     <color name="highlight_yellow">#FFEB3B</color>
 
+    <!-- Adaptive colors for better dark mode support -->
+    <color name="background_color">@color/light_gray</color>
+    <color name="surface_color">@color/white</color>
+    <color name="text_primary">@color/dark_blue</color>
+    <color name="text_secondary">#FF666666</color>
+    <color name="button_background">@color/primary_blue</color>
+    <color name="card_background">@color/white</color>
+    <color name="divider_color">#FFCCCCCC</color>
 </resources>
